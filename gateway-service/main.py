@@ -1,6 +1,6 @@
 import httpx
 from typing import Literal
-
+import os
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from schemas.advisory import (
@@ -20,7 +20,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*","http://127.0.0.1:5173"],
+    allow_origins=["*","http://127.0.0.1:5173","https://strawberry-insight-ai.vercel.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,7 +33,10 @@ def root():
         "status": "running",
     }
 
-DISEASE_SERVICE_URL = "http://127.0.0.1:8001"
+DISEASE_SERVICE_URL = os.getenv(
+    "DISEASE_SERVICE_URL",
+    "http://127.0.0.1:8001"
+)
 ADVISORY_SERVICE_URL = "http://127.0.0.1:8002"
 
 @app.get("/health")
