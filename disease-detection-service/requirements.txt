@@ -1,0 +1,5 @@
+ultralytics==8.4.155
+fastapi
+uvicorn[standard]
+python-multipart
+pillow
