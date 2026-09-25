@@ -11,7 +11,7 @@ import "../css/AgriVision.css";
 // FASTAPI GATEWAY
 // ============================================================
 
-const GATEWAY_URL = "http://127.0.0.1:8000";
+const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL;
 
 // Delay between completed live inference requests.
 const LIVE_INTERVAL_MS = 300;
