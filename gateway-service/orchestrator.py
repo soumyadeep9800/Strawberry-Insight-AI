@@ -3,6 +3,7 @@ import asyncio
 
 DISEASE_SERVICE_URL = "http://127.0.0.1:8001"
 ADVISORY_SERVICE_URL = "http://127.0.0.1:8002"
+STRAWBERRY_VALIDATION_SERVICE_URL = "http://127.0.0.1:8007"
 
 # -------------------------
 # Disease Service
@@ -40,7 +41,40 @@ async def disease_prediction(
 
     return response.json()
 
+# -------------------------
+# Strawberry Plant Validation Service
+# -------------------------
 
+async def strawberry_plant_validation(
+    file_bytes: bytes,
+    filename: str,
+    content_type: str,
+    confidence: float,
+) -> dict:
+
+    files = {
+        "file": (
+            filename,
+            file_bytes,
+            content_type,
+        )
+    }
+
+    data = {
+        "confidence": str(confidence),
+    }
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+
+        response = await client.post(
+            f"{STRAWBERRY_VALIDATION_SERVICE_URL}/validate",
+            files=files,
+            data=data,
+        )
+
+    response.raise_for_status()
+
+    return response.json()
 # -------------------------
 # Advisory Service
 # -------------------------

@@ -9,6 +9,7 @@ from schemas.advisory import (
 
 from orchestrator import (
     disease_prediction,
+    strawberry_plant_validation,
     generate_multiple_advisories,
 )
 
@@ -38,30 +39,57 @@ DISEASE_SERVICE_URL = os.getenv(
     "http://127.0.0.1:8001"
 )
 ADVISORY_SERVICE_URL = "http://127.0.0.1:8002"
+STRAWBERRY_VALIDATION_SERVICE_URL = "http://127.0.0.1:8007"
 
 @app.get("/health")
 async def health():
+
     services = {}
 
     async with httpx.AsyncClient(timeout=2.0) as client:
 
         # Disease Detection
         try:
-            response = await client.get(f"{DISEASE_SERVICE_URL}/health")
-            services["disease_detection"] = response.status_code == 200
+            response = await client.get(
+                f"{DISEASE_SERVICE_URL}/health"
+            )
+
+            services["disease_detection"] = (
+                response.status_code == 200
+            )
+
         except Exception:
             services["disease_detection"] = False
 
         # Advisory
         try:
-            response = await client.get(f"{ADVISORY_SERVICE_URL}/health")
-            services["advisory"] = response.status_code == 200
+            response = await client.get(
+                f"{ADVISORY_SERVICE_URL}/health"
+            )
+
+            services["advisory"] = (
+                response.status_code == 200
+            )
+
         except Exception:
             services["advisory"] = False
 
+        # Strawberry Plant Validation
+        try:
+            response = await client.get(
+                f"{STRAWBERRY_VALIDATION_SERVICE_URL}/health"
+            )
+
+            services["strawberry_validation"] = (
+                response.status_code == 200
+            )
+
+        except Exception:
+            services["strawberry_validation"] = False
+
     return {
         "status": "healthy",
-        "services": services
+        "services": services,
     }
 # -------------------------
 # Disease Detection
@@ -71,6 +99,7 @@ async def analyze(
     file: UploadFile = File(...),
     model: Literal["yolov8s", "rtdetr"] = Form("yolov8s"),
     confidence: float = Form(0.25),
+    validate_strawberry: bool = Form(False),
 ):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -87,6 +116,34 @@ async def analyze(
     try:
         file_bytes = await file.read()
 
+        # ------------------------------------------------
+        # Optional Strawberry Plant Validation
+        # ------------------------------------------------
+
+        if validate_strawberry:
+
+            validation_result = await strawberry_plant_validation(
+                file_bytes=file_bytes,
+                filename=file.filename or "image.jpg",
+                content_type=file.content_type,
+                confidence=0.25,
+            )
+
+            if not validation_result[
+                "strawberry_plant_detected"
+            ]:
+
+                return {
+                    "status": "success",
+                    "strawberry_validation": validation_result,
+                    "disease_detection": None,
+                    "message": "No strawberry plant detected.",
+                }
+
+        # ------------------------------------------------
+        # Disease Detection
+        # ------------------------------------------------
+
         result = await disease_prediction(
             file_bytes=file_bytes,
             filename=file.filename or "image.jpg",
@@ -97,15 +154,19 @@ async def analyze(
 
         return {
             "status": "success",
+            "strawberry_validation": (
+                validation_result
+                if validate_strawberry
+                else None
+            ),
             "disease_detection": result,
         }
 
     except Exception as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"Disease detection service error: {exc}",
+            detail=f"Gateway service error: {exc}",
         )
-
 
 # -------------------------
 # Advisory
